@@ -5,8 +5,9 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.view.Menu;
@@ -43,9 +44,11 @@ public class ImageSelector extends Activity {
             public void onItemClick(AdapterView<?> parent, View v,
                                     int position, long id) {
                 if(mSelectedImages.containsKey(position)){
+                    ((ImageViewWithPath) v).deselect();
                     mSelectedImages.remove(position);
                     Toast.makeText(getApplicationContext(), "Picture Nr." + String.valueOf(position) + " removed.", Toast.LENGTH_SHORT).show();
                 }else {
+                    ((ImageViewWithPath) v).select();
                     mSelectedImages.put(position, ((ImageViewWithPath) v).getPath());
                     Toast.makeText(getApplicationContext(), "Picture Nr." + String.valueOf(position) + " added.", Toast.LENGTH_SHORT).show();
                 }
@@ -126,9 +129,9 @@ public class ImageSelector extends Activity {
             }
             if (mAllImagesPathsProvider.nextOrClose()) {
                 String picturePath = mAllImagesPathsProvider.getPicturePath();
-                Bitmap pictureObject = BitmapFactory.decodeFile(picturePath);
-                imageView.setPath(picturePath);
-                imageView.setImageBitmap(pictureObject);
+                imageView.fillView(picturePath);
+//                imageView.setPath(picturePath);
+//                imageView.setImageBitmap(pictureObject);
             }
             return imageView;
         }
@@ -190,24 +193,58 @@ public class ImageSelector extends Activity {
     }
 
     public class ImageViewWithPath extends ImageView {
-        //ImageView with Path of attached Bitmap
         String mPath;
+        int mAlpha;
+        Boolean mSelected;
+        Drawable[] mLayers = new Drawable[2];
 
         public ImageViewWithPath(Context context) {
             super(context);
+            mPath = "";
+            mSelected = false;
         }
 
         public ImageViewWithPath(Context context, String path) {
             super(context);
             mPath = path;
+            mSelected = false;
         }
 
         public void setPath(String path){
             mPath = path;
         }
 
+        public void select(){
+            mSelected = true;
+            mAlpha = 255;
+            redrawView();
+        }
+
+       public void deselect(){
+           mSelected = false;
+           mAlpha = 0;
+           redrawView();
+        }
+
         public String getPath(){
             return mPath;
+        }
+
+        public void redrawView(){
+            if(mSelected){
+                mLayers[1].setAlpha(255);
+            }else{
+                mLayers[1].setAlpha(0);
+            }
+            setImageDrawable(new LayerDrawable(mLayers));
+        }
+
+        public void fillView(String path){
+            mLayers[1] =  getResources().getDrawable(R.drawable.picture_cross);
+            mAlpha = 0;
+            setPath(path);
+            mLayers[0] = new BitmapDrawable(mPath);
+            redrawView();
         }
     }
 }
