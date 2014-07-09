@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">MultiImageSelector</string>
+    <string name="button_text">Open Gallery</string>
+    <string name="title">Multi Image Selector</string>
+    <string name="action_settings">Action Settings</string>
+    <string name="title_activity_image_selector">Select Images</string>
+    <string name="button_select">Select Images</string>
+
+</resources>
