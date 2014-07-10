@@ -5,15 +5,10 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.LayerDrawable;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
+import android.view.*;
 import android.widget.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,31 +21,36 @@ public class ImageSelector extends Activity {
     final int PICTURE_SCALE = 200;
     final int PICTURE_PADDING = 8;
 
+    ArrayList<ImageCell> mImagesCellList;
+    //ArrayList<String> mImagesList;
     HashMap mSelectedImages = new HashMap();
+    GridView mGridView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_image_selector);
-        ImageAdapter imageAdapter = new ImageAdapter(this);
 
-        GridView gridView = (GridView) findViewById(R.id.gridView1);
-        gridView.setNumColumns(NUMBER_OF_GRID_COLUMNS);
-        gridView.setPadding(GRID_PADDING, GRID_PADDING, GRID_PADDING, GRID_PADDING);
-        gridView.setHorizontalSpacing(GRID_SPACING);
-        gridView.setVerticalSpacing(GRID_SPACING);
-        gridView.setAdapter(imageAdapter);
-        gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            public void onItemClick(AdapterView<?> parent, View v,
-                                    int position, long id) {
-                if(mSelectedImages.containsKey(position)){
-                    ((ImageViewWithPath) v).deselect();
-                    mSelectedImages.remove(position);
-                    Toast.makeText(getApplicationContext(), "Picture Nr." + String.valueOf(position) + " removed.", Toast.LENGTH_SHORT).show();
-                }else {
-                    ((ImageViewWithPath) v).select();
-                    mSelectedImages.put(position, ((ImageViewWithPath) v).getPath());
-                    Toast.makeText(getApplicationContext(), "Picture Nr." + String.valueOf(position) + " added.", Toast.LENGTH_SHORT).show();
+        mImagesCellList = getImagesList();
+        //mImagesList = getImagesList();
+
+        final ImageAdapter imageAdapter = new ImageAdapter(this, mImagesCellList);
+
+        mGridView = (GridView) findViewById(R.id.gridView1);
+
+        mGridView.setNumColumns(NUMBER_OF_GRID_COLUMNS);
+        mGridView.setPadding(GRID_PADDING, GRID_PADDING, GRID_PADDING, GRID_PADDING);
+        mGridView.setHorizontalSpacing(GRID_SPACING);
+        mGridView.setVerticalSpacing(GRID_SPACING);
+
+        mGridView.setAdapter(imageAdapter);
+
+        mGridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
+                if (mSelectedImages.containsKey(position)) {
+                    deselectImage(position); //TODO eventuell ohne extra funktion ????
+                } else {
+                    selectImage(position); //TODO eventuell ohne extra funktion ????
                 }
             }
         });
@@ -80,7 +80,7 @@ public class ImageSelector extends Activity {
         ArrayList<ImagePathParcelable> pathParcelables = new ArrayList<ImagePathParcelable>();
         Iterator it = mSelectedImages.entrySet().iterator();
         while (it.hasNext()) {
-            HashMap.Entry entry = (HashMap.Entry)it.next();
+            HashMap.Entry entry = (HashMap.Entry) it.next();
             pathParcelables.add(new ImagePathParcelable(entry.getValue().toString()));
             it.remove();
         }
@@ -89,19 +89,42 @@ public class ImageSelector extends Activity {
         finish();
     }
 
+    public ArrayList<ImageCell> getImagesList() {
+        ArrayList<ImageCell> imagesCellList = new ArrayList<ImageCell>();
+
+        ContentResolver resolver = getContentResolver();
+        String[] mediaStoreImages = new String[]{MediaStore.Images.Media._ID, MediaStore.Images.Media.DATA};
+        Cursor c = resolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, mediaStoreImages, null, null, MediaStore.Images.Media.DEFAULT_SORT_ORDER);
+        String[] fileColumn = new String[]{MediaStore.Images.Media.DATA};
+
+        c.moveToFirst();
+        do {
+            imagesCellList.add(new ImageCell(c.getPosition(), c.getString(c.getColumnIndex(fileColumn[0]))));
+            c.moveToNext();
+        } while (!c.isLast());
+        c.close();
+
+        return imagesCellList;
+    };
+
+    public void selectImage(int position) {
+        mSelectedImages.put(position, mImagesCellList.get(position));
+        mImagesCellList.get(position).select();
+    }
+
+    public void deselectImage(int position) {
+        mSelectedImages.remove(position);
+        mImagesCellList.get(position).deselect();
+    }
+
+    ////////////////////
     public class ImageAdapter extends BaseAdapter {
         private Context mContext;
-        AllImagesPathsProvider mAllImagesPathsProvider;
-        int mImageCount;
+        private ArrayList<ImageCell> mImageCellList;
 
-        public ImageAdapter(Context c) {
-            mContext = c;
-            mAllImagesPathsProvider = new AllImagesPathsProvider(mContext);
-            mImageCount = mAllImagesPathsProvider.getCount();
-        }
-
-        public int getCount() {
-            return mImageCount;
+        public ImageAdapter(Context context, ArrayList<ImageCell> imagesCellList) {
+            mContext = context;
+            mImageCellList = imagesCellList;
         }
 
         public Object getItem(int position) {
@@ -112,131 +135,78 @@ public class ImageSelector extends Activity {
             return 0;
         }
 
-        // create a new ImageView for each item referenced by the Adapter
-        //@Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            ImageViewWithPath imageView;
+        public int getCount() {
+            return mImageCellList.size();
+        }
 
+        public View getView(int position, View convertView, ViewGroup parent) {
+            //XViewGroup viewGroup = new XViewGroup(mContext);
+
+            ImageView overlayView = new ImageView(mContext);
+            overlayView.setImageResource(R.drawable.picture_cross_border);
+
+            ImageView imageView;
             if (convertView == null) {
-                imageView = new ImageViewWithPath(mContext);
+
+                imageView = new ImageView(mContext);
                 imageView.setLayoutParams(new GridView.LayoutParams(PICTURE_SCALE, PICTURE_SCALE));
                 imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 imageView.setPadding(PICTURE_PADDING, PICTURE_PADDING, PICTURE_PADDING, PICTURE_PADDING);
             } else {
-                imageView = (ImageViewWithPath) convertView;
+                imageView = (ImageView) convertView;
             }
-            if (mAllImagesPathsProvider.nextOrClose()) {
-                String picturePath = mAllImagesPathsProvider.getPicturePath();
-                imageView.fillView(picturePath);
-            }
+            imageView.setImageBitmap(BitmapFactory.decodeFile(mImageCellList.get(position).getPath()));
+
+            //parent.addView(overlayView);
+            //parent.addView(imageView);
+
             return imageView;
         }
     }
 
-    public class AllImagesPathsProvider {
-        Context mContext;
-        Cursor mCursor;
-        String[] mImagesList;
-        String[] mFileColumn;
-        int mImgCount;
-        Boolean mClosed;
-
-        public AllImagesPathsProvider(Context c){
-            mContext = c;
-
-            ContentResolver resolver = getContentResolver();
-            mImagesList = new String[]{MediaStore.Images.Media._ID, MediaStore.Images.Media.DATA};
-            mCursor = resolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, mImagesList, null, null, MediaStore.Images.Media.DEFAULT_SORT_ORDER);
-            mFileColumn = new String[]{MediaStore.Images.Media.DATA};
-            mImgCount = mCursor.getCount();
-            mCursor.moveToFirst();
-            if (mCursor.getCount() > 0 ){
-                mClosed = false;
-            }
-            else{
-                mClosed = true;
-            }
-        }
-
-        public int getCount(){
-            return mImgCount;
-        }
-
-        public Boolean nextOrClose(){
-            if(mClosed) {
-                return false;
-            }
-            else{
-                if(mCursor.isLast()) {
-                    close();
-                    return false;
-                }else{
-                    mCursor.moveToNext();
-                    return true;
-                }
-            }
-        }
-
-        public void close(){
-            mCursor.close();
-            mClosed = true;
-        }
-
-        public String getPicturePath(){
-            return  mCursor.getString(mCursor.getColumnIndex(mFileColumn[0]));
-        }
-
-    }
-
-    public class ImageViewWithPath extends ImageView {
-        String mPath;
+    public class ImageCell{
+        int mPosition;
+        String mImagePath;
         Boolean mSelected;
-        Drawable[] mLayers = new Drawable[2];
 
-        public ImageViewWithPath(Context context) {
-            super(context);
-            mPath = "";
+        public ImageCell(int position, String path){
+            mPosition = position;
+            mImagePath = path;
             mSelected = false;
         }
 
-        public ImageViewWithPath(Context context, String path) {
-            super(context);
-            mPath = path;
-            mSelected = false;
+        public String getPath(){
+            return mImagePath;
         }
 
-        public void setPath(String path){
-            mPath = path;
+        public int getPosition(){
+            return mPosition;
+        }
+
+        public Boolean isSelected(){
+            return mSelected;
         }
 
         public void select(){
             mSelected = true;
-            redrawView();
         }
 
-       public void deselect(){
-           mSelected = false;
-           redrawView();
-        }
-
-        public String getPath(){
-            return mPath;
-        }
-
-        public void redrawView(){
-            if(mSelected){
-                mLayers[1].mutate().setAlpha(255);
-            }else{
-                mLayers[1].mutate().setAlpha(0);
-            }
-            setImageDrawable(new LayerDrawable(mLayers));
-        }
-
-        public void fillView(String path){
-            mLayers[1] =  getResources().getDrawable(R.drawable.picture_cross_border);
-            setPath(path);
-            mLayers[0] = new BitmapDrawable(mPath);
-            redrawView();
+        public void deselect(){
+            mSelected = false;
         }
     }
+//
+//    public class XViewGroup extends ViewGroup{
+//        Boolean selected;
+//
+//        public XViewGroup (Context context){
+//            super(context);
+//            selected = false;
+//        }
+//
+//        @Override
+//        protected void onLayout(boolean changed, int l, int t, int r, int b) {
+//            //TODO WUT???
+//        }
+//    }
 }
