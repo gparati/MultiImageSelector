@@ -86,8 +86,6 @@ public class ImageSelector extends Activity {
         }
         rIntent.putParcelableArrayListExtra("SELECTED_IMAGES_LIST", pathParcelables);
         setResult(RESULT_OK, rIntent);
-        //ri.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        //startActivity(rIntent);
         finish();
     }
 
@@ -119,7 +117,7 @@ public class ImageSelector extends Activity {
         public View getView(int position, View convertView, ViewGroup parent) {
             ImageViewWithPath imageView;
 
-            if (convertView == null) {  // if it's not recycled, initialize some attributes
+            if (convertView == null) {
                 imageView = new ImageViewWithPath(mContext);
                 imageView.setLayoutParams(new GridView.LayoutParams(PICTURE_SCALE, PICTURE_SCALE));
                 imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
@@ -130,8 +128,6 @@ public class ImageSelector extends Activity {
             if (mAllImagesPathsProvider.nextOrClose()) {
                 String picturePath = mAllImagesPathsProvider.getPicturePath();
                 imageView.fillView(picturePath);
-//                imageView.setPath(picturePath);
-//                imageView.setImageBitmap(pictureObject);
             }
             return imageView;
         }
@@ -194,7 +190,6 @@ public class ImageSelector extends Activity {
 
     public class ImageViewWithPath extends ImageView {
         String mPath;
-        int mAlpha;
         Boolean mSelected;
         Drawable[] mLayers = new Drawable[2];
 
@@ -216,13 +211,11 @@ public class ImageSelector extends Activity {
 
         public void select(){
             mSelected = true;
-            mAlpha = 255;
             redrawView();
         }
 
        public void deselect(){
            mSelected = false;
-           mAlpha = 0;
            redrawView();
         }
 
@@ -232,16 +225,15 @@ public class ImageSelector extends Activity {
 
         public void redrawView(){
             if(mSelected){
-                mLayers[1].setAlpha(255);
+                mLayers[1].mutate().setAlpha(255);
             }else{
-                mLayers[1].setAlpha(0);
+                mLayers[1].mutate().setAlpha(0);
             }
             setImageDrawable(new LayerDrawable(mLayers));
         }
 
         public void fillView(String path){
-            mLayers[1] =  getResources().getDrawable(R.drawable.picture_cross);
-            mAlpha = 0;
+            mLayers[1] =  getResources().getDrawable(R.drawable.picture_cross_border);
             setPath(path);
             mLayers[0] = new BitmapDrawable(mPath);
             redrawView();
