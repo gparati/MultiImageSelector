@@ -5,6 +5,7 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Point;
 import android.os.Bundle;
@@ -12,22 +13,17 @@ import android.provider.MediaStore;
 import android.view.*;
 import android.widget.*;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 
 public class ImageSelector extends Activity {
 
-    final int PICTURE_SCALE = 200;
+    final int PICTURE_SCALE = 256;
     final int PICTURE_PADDING = 1;
-    int picture_padding_sides;
 
     ArrayList<ImageCell> _imagesCellList;
-    HashMap _selectedImages = new HashMap();
     GridView _gridView;
-    ImageAdapter _imageAdapter;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(final Bundle savedInstanceState) {
         //TODO BUTTON im xml mit leiste im code ersetzen
         super.onCreate(savedInstanceState);
 
@@ -41,22 +37,31 @@ public class ImageSelector extends Activity {
         LinearLayout _content = new LinearLayout(this);
         _content.setId(R.id.userinput_imageselector);
         _content.setBackgroundColor(0xFFFFFFFF);
+        _content.setOrientation(LinearLayout.VERTICAL);
         _content.setLayoutParams(lp);
         setContentView(_content);
 
         _gridView = new GridView(this);
+        //_gridView.setPadding(1,100,1,1);
         _gridView.setId(R.id.gridview_select_images_id);
-        _gridView.setLayoutParams(new GridView.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)); //TODO
-        ViewGroup.LayoutParams gVlP = new GridView.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        _gridView.setLayoutParams(new GridView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         _gridView.setStretchMode(GridView.STRETCH_SPACING);
         _gridView.setNumColumns(number_of_grid_columns);
         _gridView.setColumnWidth(PICTURE_SCALE);
 
-        _imagesCellList = getImagesList();
+
+        if(savedInstanceState != null && savedInstanceState.containsKey("IMAGES_LIST_PARCELABLE")){
+            _imagesCellList = getImagesList(savedInstanceState);
+            //_gridView.invalidateViews();
+        }else{
+            _imagesCellList = getImagesList();
+        }
+
         ImageAdapter imageAdapter = new ImageAdapter(this, _imagesCellList);
         _gridView.setAdapter(imageAdapter);
 
-        Button buttonSelect = new Button(this);// findViewById(R.id.button_select_images_id);
+        Button buttonSelect = new Button(this);
+        buttonSelect.setText("Select");
         buttonSelect.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View arg0) {
@@ -64,18 +69,17 @@ public class ImageSelector extends Activity {
             }
         });
 
-        addContentView(_gridView, gVlP);
+        _content.addView(buttonSelect);
+        _content.addView(_gridView);
 
         _gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
-                if (_selectedImages.containsKey(position)) {
-                    _selectedImages.remove(position);
+                if (_imagesCellList.get(position).isSelected()) {
                     _imagesCellList.get(position).deselect();
-                    _gridView.setAdapter(_imageAdapter); //TODO eventually not the way to go
+                    _gridView.invalidateViews();
                 } else {
-                    _selectedImages.put(position, _imagesCellList.get(position));
                     _imagesCellList.get(position).select();
-                    _gridView.setAdapter(_imageAdapter); //TODO eventually not the way to go
+                    _gridView.invalidateViews();
                 }
             }
         });
@@ -100,18 +104,53 @@ public class ImageSelector extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void processSelectedImages() {
+    @Override
+    protected void onPause() {
+        super.onPause();
+        //_imagesCellList.clear();
+        _gridView.invalidateViews();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        //_imagesCellList.clear();
+        _gridView.invalidateViews();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        ArrayList<ImageParcelable> oldImages = new ArrayList<ImageParcelable>();
         Intent rIntent = new Intent(this, MainActivity.class);
-        ArrayList<ImagePathParcelable> pathParcelables = new ArrayList<ImagePathParcelable>();
-        Iterator it = _selectedImages.entrySet().iterator();
-        while (it.hasNext()) {
-            HashMap.Entry entry = (HashMap.Entry) it.next();
-            pathParcelables.add(new ImagePathParcelable(entry.getValue().toString()));
-            it.remove();
+
+        for (int i=0; i < _imagesCellList.size(); i++) { //TODO geht sicher besser ???
+            oldImages.add(getImageParcelable(_imagesCellList.get(i).getPostion(), _imagesCellList.get(i).getPath(),_imagesCellList.get(i).isSelected()));
         }
-        rIntent.putParcelableArrayListExtra("SELECTED_IMAGES_LIST", pathParcelables);
+        outState.putParcelableArrayList("IMAGES_LIST_PARCELABLE", oldImages);
+    }
+
+    public void processSelectedImages() {
+        ArrayList<ImagePathParcelable> selectedImages = new ArrayList<ImagePathParcelable>();
+        Intent rIntent = new Intent(this, MainActivity.class);
+
+        for (int i=0; i < _imagesCellList.size(); i++) {
+            if (_imagesCellList.get(i).isSelected())
+            selectedImages.add(getImagePathParcelable(_imagesCellList.get(i).getPath()));
+        }
+
+        rIntent.putParcelableArrayListExtra("SELECTED_IMAGES_LIST", selectedImages);
         setResult(RESULT_OK, rIntent);
         finish();
+    }
+
+    public ImageParcelable getImageParcelable(int position, String imagePath, Boolean selected){
+        return new ImageParcelable(position, imagePath, selected);
+    }
+
+    public ImagePathParcelable getImagePathParcelable(String imagePath){
+        return new ImagePathParcelable(imagePath);
     }
 
     public ArrayList<ImageCell> getImagesList() {
@@ -124,11 +163,23 @@ public class ImageSelector extends Activity {
 
         c.moveToFirst();
         do {
-            imagesCellList.add(new ImageCell(c.getPosition(), c.getString(c.getColumnIndex(fileColumn[0]))));
+            imagesCellList.add(new ImageCell(c.getPosition(), c.getString(c.getColumnIndex(fileColumn[0])), false));
             c.moveToNext();
         } while (!c.isLast());
         c.close();
 
+        return imagesCellList;
+    };
+
+    public ArrayList<ImageCell> getImagesList(Bundle savedInstanceState) {
+        ArrayList<ImageCell> imagesCellList = new ArrayList<ImageCell>();
+        ArrayList<ImageParcelable> imagesParcelableList = new ArrayList<ImageParcelable>();
+
+        imagesParcelableList = (ArrayList<ImageParcelable>) savedInstanceState.get("IMAGES_LIST_PARCELABLE");
+
+        for(int i=0; i < imagesParcelableList.size(); i++){
+            imagesCellList.add(new ImageCell(imagesParcelableList.get(i).get_position(), imagesParcelableList.get(i).get_imagePath(), imagesParcelableList.get(i).get_selected()));
+        }
         return imagesCellList;
     };
 
@@ -155,55 +206,96 @@ public class ImageSelector extends Activity {
         }
 
         public View getView(int position, View convertView, ViewGroup parent) {
-            LinearLayout doubleImage;
+            RelativeLayout doubleImage;
             ImageView overlay, bitmap;
 
             if (convertView == null) {
-                doubleImage = new LinearLayout(mContext);
+                doubleImage = new RelativeLayout(mContext);
                 doubleImage.setLayoutParams(new ListView.LayoutParams(PICTURE_SCALE, PICTURE_SCALE));
                 doubleImage.setPadding(PICTURE_PADDING, PICTURE_PADDING, PICTURE_PADDING, PICTURE_PADDING);
 
                 overlay = new ImageView(mContext);
                 overlay.setImageResource(R.drawable.picture_cross_border);
                 overlay.setId(R.id.overlay_id);
-                //overlay.setVisibility(View.INVISIBLE);
 
                 bitmap = new ImageView(mContext);
+                bitmap.setImageBitmap(decodeSampledBitmapFromPath(mImageCellList.get(position).getPath(), PICTURE_SCALE, PICTURE_SCALE));
                 bitmap.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                bitmap.setImageBitmap(BitmapFactory.decodeFile(mImageCellList.get(position).getPath()));
 
                 doubleImage.addView(bitmap);
                 doubleImage.addView(overlay);
 
             }else{
-                doubleImage = (LinearLayout) convertView;
+                doubleImage = (RelativeLayout) convertView;
             }
-            if(_imagesCellList.get(position).isSelected()){
+            if(mImageCellList.get(position).isSelected()){
                 doubleImage.getChildAt(1).setVisibility(View.VISIBLE);
             }else{
                 doubleImage.getChildAt(1).setVisibility(View.INVISIBLE);
             }
             return doubleImage;
         }
-    }
+
+        private Bitmap decodeSampledBitmapFromPath(String path, int reqWidth, int reqHeight) {
+
+            // First decode with inJustDecodeBounds=true to check dimensions
+            final BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(path, options);
+
+            // Calculate inSampleSize
+            options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+
+            // Decode bitmap with inSampleSize set
+            options.inJustDecodeBounds = false;
+            return BitmapFactory.decodeFile(path, options);
+        }
+
+        public int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
+                // Raw height and width of image
+                final int height = options.outHeight;
+                final int width = options.outWidth;
+                int inSampleSize = 1;
+
+                if (height > reqHeight || width > reqWidth) {
+
+                    final int halfHeight = height / 2;
+                    final int halfWidth = width / 2;
+
+                    // Calculate the largest inSampleSize value that is a power of 2 and keeps both
+                    // height and width larger than the requested height and width.
+                    while ((halfHeight / inSampleSize) > reqHeight
+                            && (halfWidth / inSampleSize) > reqWidth) {
+                        inSampleSize *= 2;
+                    }
+                }
+                return inSampleSize;
+            }
+        }
 
     public class ImageCell{
         int mPosition;
         String mImagePath;
         Boolean mSelected;
 
-        public ImageCell(int position, String path){
+        public ImageCell(ImageCell imageCell){
+            mPosition = imageCell.getPostion();
+            mImagePath = imageCell.getPath();
+            mSelected = imageCell.isSelected();
+        }
+
+        public ImageCell(int position, String path, Boolean selected){
             mPosition = position;
             mImagePath = path;
-            mSelected = false;
+            mSelected = selected;
+        }
+
+        public int getPostion(){
+            return mPosition;
         }
 
         public String getPath(){
             return mImagePath;
-        }
-
-        public int getPosition(){
-            return mPosition;
         }
 
         public Boolean isSelected(){

@@ -71,21 +71,16 @@ public class MainActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
-
-
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent rIntent){
         super.onActivityResult(requestCode, resultCode, rIntent);
         switch(requestCode) {
             case(MULTI_IMAGE_REQUEST) : {
                 if (resultCode == Activity.RESULT_OK) {
-                    //Intent i = getIntent();
                     ArrayList<ImagePathParcelable> pathParcelables = rIntent.getParcelableArrayListExtra("SELECTED_IMAGES_LIST");
-
-                    //Cycle throug recivec list and fill hashmap
                     int iter=0;
                     for (ImagePathParcelable iPP : pathParcelables){
-                        mSelectedImages.put(iter++, iPP.getImagePath());
+                        mSelectedImages.put(iter++, iPP.get_imagePath());
                     }
                 }
                 break;

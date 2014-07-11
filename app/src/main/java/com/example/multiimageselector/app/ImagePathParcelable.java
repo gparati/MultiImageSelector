@@ -10,18 +10,18 @@ import android.os.Parcelable;
 //TODO I'll first do this for a String since is simpler and try to implement it for a Hashmap after
 
 public class ImagePathParcelable implements Parcelable {
-    private String imagePath;
+    private String _imagePath;
 
-    public ImagePathParcelable(String imageMap){
-        this.imagePath = imageMap;
+    public ImagePathParcelable(String imagePath){
+        _imagePath = imagePath;
     }
 
     public ImagePathParcelable(Parcel source){
-        this.imagePath = source.readString();
+        _imagePath = source.readString();
     }
 
-    public String getImagePath() {
-        return imagePath;
+    public String get_imagePath() {
+        return _imagePath;
     }
 
     @Override
@@ -32,9 +32,7 @@ public class ImagePathParcelable implements Parcelable {
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         //Here is where the conversion(serialization) happens
-        //TODO Problem no given functions for HasMap !?!
-        dest.writeString(this.imagePath);
-
+        dest.writeString(_imagePath);
     }
 
     public static final Parcelable.Creator<ImagePathParcelable> CREATOR
