@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.BitmapFactory;
+import android.graphics.Point;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.view.*;
@@ -15,42 +16,66 @@ import java.util.HashMap;
 import java.util.Iterator;
 
 public class ImageSelector extends Activity {
-    final int NUMBER_OF_GRID_COLUMNS = 4;
-    final int GRID_PADDING = 16;
-    final int GRID_SPACING = 4;
-    final int PICTURE_SCALE = 200;
-    final int PICTURE_PADDING = 8;
 
-    ArrayList<ImageCell> mImagesCellList;
-    //ArrayList<String> mImagesList;
-    HashMap mSelectedImages = new HashMap();
-    GridView mGridView;
+    final int PICTURE_SCALE = 200;
+    final int PICTURE_PADDING = 1;
+    int picture_padding_sides;
+
+    ArrayList<ImageCell> _imagesCellList;
+    HashMap _selectedImages = new HashMap();
+    GridView _gridView;
+    ImageAdapter _imageAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        //TODO BUTTON im xml mit leiste im code ersetzen
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_image_selector);
 
-        mImagesCellList = getImagesList();
-        //mImagesList = getImagesList();
+        Display display = getWindowManager().getDefaultDisplay();
+        Point size = new Point();
+        display.getSize(size);
+        int width = size.x;
+        int number_of_grid_columns = (width) / (PICTURE_SCALE + PICTURE_PADDING);
 
-        final ImageAdapter imageAdapter = new ImageAdapter(this, mImagesCellList);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        LinearLayout _content = new LinearLayout(this);
+        _content.setId(R.id.userinput_imageselector);
+        _content.setBackgroundColor(0xFFFFFFFF);
+        _content.setLayoutParams(lp);
+        setContentView(_content);
 
-        mGridView = (GridView) findViewById(R.id.gridView1);
+        _gridView = new GridView(this);
+        _gridView.setId(R.id.gridview_select_images_id);
+        _gridView.setLayoutParams(new GridView.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)); //TODO
+        ViewGroup.LayoutParams gVlP = new GridView.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        _gridView.setStretchMode(GridView.STRETCH_SPACING);
+        _gridView.setNumColumns(number_of_grid_columns);
+        _gridView.setColumnWidth(PICTURE_SCALE);
 
-        mGridView.setNumColumns(NUMBER_OF_GRID_COLUMNS);
-        mGridView.setPadding(GRID_PADDING, GRID_PADDING, GRID_PADDING, GRID_PADDING);
-        mGridView.setHorizontalSpacing(GRID_SPACING);
-        mGridView.setVerticalSpacing(GRID_SPACING);
+        _imagesCellList = getImagesList();
+        ImageAdapter imageAdapter = new ImageAdapter(this, _imagesCellList);
+        _gridView.setAdapter(imageAdapter);
 
-        mGridView.setAdapter(imageAdapter);
+        Button buttonSelect = new Button(this);// findViewById(R.id.button_select_images_id);
+        buttonSelect.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View arg0) {
+                processSelectedImages();
+            }
+        });
 
-        mGridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+        addContentView(_gridView, gVlP);
+
+        _gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
-                if (mSelectedImages.containsKey(position)) {
-                    deselectImage(position); //TODO eventuell ohne extra funktion ????
+                if (_selectedImages.containsKey(position)) {
+                    _selectedImages.remove(position);
+                    _imagesCellList.get(position).deselect();
+                    _gridView.setAdapter(_imageAdapter); //TODO eventually not the way to go
                 } else {
-                    selectImage(position); //TODO eventuell ohne extra funktion ????
+                    _selectedImages.put(position, _imagesCellList.get(position));
+                    _imagesCellList.get(position).select();
+                    _gridView.setAdapter(_imageAdapter); //TODO eventually not the way to go
                 }
             }
         });
@@ -75,10 +100,10 @@ public class ImageSelector extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void processSelectedImages(View view) {
+    public void processSelectedImages() {
         Intent rIntent = new Intent(this, MainActivity.class);
         ArrayList<ImagePathParcelable> pathParcelables = new ArrayList<ImagePathParcelable>();
-        Iterator it = mSelectedImages.entrySet().iterator();
+        Iterator it = _selectedImages.entrySet().iterator();
         while (it.hasNext()) {
             HashMap.Entry entry = (HashMap.Entry) it.next();
             pathParcelables.add(new ImagePathParcelable(entry.getValue().toString()));
@@ -107,20 +132,10 @@ public class ImageSelector extends Activity {
         return imagesCellList;
     };
 
-    public void selectImage(int position) {
-        mSelectedImages.put(position, mImagesCellList.get(position));
-        mImagesCellList.get(position).select();
-    }
-
-    public void deselectImage(int position) {
-        mSelectedImages.remove(position);
-        mImagesCellList.get(position).deselect();
-    }
-
-    ////////////////////
     public class ImageAdapter extends BaseAdapter {
         private Context mContext;
         private ArrayList<ImageCell> mImageCellList;
+
 
         public ImageAdapter(Context context, ArrayList<ImageCell> imagesCellList) {
             mContext = context;
@@ -140,27 +155,35 @@ public class ImageSelector extends Activity {
         }
 
         public View getView(int position, View convertView, ViewGroup parent) {
-            //XViewGroup viewGroup = new XViewGroup(mContext);
+            LinearLayout doubleImage;
+            ImageView overlay, bitmap;
 
-            ImageView overlayView = new ImageView(mContext);
-            overlayView.setImageResource(R.drawable.picture_cross_border);
-
-            ImageView imageView;
             if (convertView == null) {
+                doubleImage = new LinearLayout(mContext);
+                doubleImage.setLayoutParams(new ListView.LayoutParams(PICTURE_SCALE, PICTURE_SCALE));
+                doubleImage.setPadding(PICTURE_PADDING, PICTURE_PADDING, PICTURE_PADDING, PICTURE_PADDING);
 
-                imageView = new ImageView(mContext);
-                imageView.setLayoutParams(new GridView.LayoutParams(PICTURE_SCALE, PICTURE_SCALE));
-                imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                imageView.setPadding(PICTURE_PADDING, PICTURE_PADDING, PICTURE_PADDING, PICTURE_PADDING);
-            } else {
-                imageView = (ImageView) convertView;
+                overlay = new ImageView(mContext);
+                overlay.setImageResource(R.drawable.picture_cross_border);
+                overlay.setId(R.id.overlay_id);
+                //overlay.setVisibility(View.INVISIBLE);
+
+                bitmap = new ImageView(mContext);
+                bitmap.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                bitmap.setImageBitmap(BitmapFactory.decodeFile(mImageCellList.get(position).getPath()));
+
+                doubleImage.addView(bitmap);
+                doubleImage.addView(overlay);
+
+            }else{
+                doubleImage = (LinearLayout) convertView;
             }
-            imageView.setImageBitmap(BitmapFactory.decodeFile(mImageCellList.get(position).getPath()));
-
-            //parent.addView(overlayView);
-            //parent.addView(imageView);
-
-            return imageView;
+            if(_imagesCellList.get(position).isSelected()){
+                doubleImage.getChildAt(1).setVisibility(View.VISIBLE);
+            }else{
+                doubleImage.getChildAt(1).setVisibility(View.INVISIBLE);
+            }
+            return doubleImage;
         }
     }
 
@@ -195,18 +218,4 @@ public class ImageSelector extends Activity {
             mSelected = false;
         }
     }
-//
-//    public class XViewGroup extends ViewGroup{
-//        Boolean selected;
-//
-//        public XViewGroup (Context context){
-//            super(context);
-//            selected = false;
-//        }
-//
-//        @Override
-//        protected void onLayout(boolean changed, int l, int t, int r, int b) {
-//            //TODO WUT???
-//        }
-//    }
 }

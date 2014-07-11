@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <item name="button_id" type="id">Select Images</item>
+    <item name="userinput_imageselector" type="id"/>
+    <item name="gridview_select_images_id" type="id"/>
+    <item name="button_select_images_id" type="id">Select Images</item>
+    <item name="overlay_id" type="id"/>
 </resources>

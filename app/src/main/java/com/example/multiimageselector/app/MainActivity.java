@@ -7,6 +7,9 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,11 +18,24 @@ public class MainActivity extends ActionBarActivity {
     final int MULTI_IMAGE_REQUEST = 111;
 
     HashMap mSelectedImages;
+    RelativeLayout doubleImage;
+    ImageView logo, overlay;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+//        doubleImage = new RelativeLayout(this);
+//        logo = new ImageView(this);
+//        overlay = new ImageView(this);
+//
+//        logo.setImageResource(R.drawable.logo_imageselector);
+//        overlay.setImageResource(R.drawable.picture_cross_border);
+//        doubleImage.addView(logo);
+//        doubleImage.addView(overlay);
+//
+//        this.addContentView(doubleImage, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         mSelectedImages = new HashMap();
     }
@@ -54,6 +70,8 @@ public class MainActivity extends ActionBarActivity {
         }
         return super.onOptionsItemSelected(item);
     }
+
+
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent rIntent){
